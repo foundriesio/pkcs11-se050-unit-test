@@ -1,0 +1,40 @@
+#
+#
+#!/bin/bash
+
+PTOOL='pkcs11-tool --module /usr/lib/libckteec.so.0.1' 
+SO_PIN=12345678
+PIN=87654321
+FILE=hello
+
+echo "hello" > hello
+
+read -p "Create EC:prime256v1 keypair" foo
+$PTOOL --keypairgen --key-type EC:prime256v1 --id 01 --label ldts  --token-label fio --pin $PIN
+
+read -p "Get the publick key to pubkey.spki" foo
+$PTOOL -l --pin $PIN --id 01 --read-object --type pubkey --output-file pubkey.spki
+
+read -p "Transform pubkey.spki from DER to PEM" foo
+openssl ec -inform DER -outform PEM -in pubkey.spki -pubin > pubkey.pub
+
+echo "hello world" > $FILE
+
+read -p "Create a digest sha256 : hello.hash" foo
+openssl dgst -binary -sha256 $FILE > $FILE.hash
+
+read -p "Sign  hello.hash with the PEM key and generate hello.sig signature " foo
+sudo $PTOOL --sign --pin $PIN --id 01 --input-file $FILE.hash --output-file $FILE.sig --mechanism ECDSA -f openssl
+
+read -p "Use the public key to verify the file signature" foo
+openssl dgst -sha256 -verify pubkey.pub -signature "$FILE".sig "$FILE"
+
+read -p "Delete private and public keys" foo
+$PTOOL --list-objects --pin $PIN
+$PTOOL -b  --type privkey --id 01 --pin 87654321
+$PTOOL -b  --type pubkey --id 01 --pin 87654321
+$PTOOL --list-objects --pin 87654321
+
+rm hello
+rm $FILE.sig
+rm $FILE.hash

@@ -1,0 +1,38 @@
+#
+#
+#!/bin/bash
+
+PTOOL='pkcs11-tool --module /usr/lib/libckteec.so.0.1'
+SO_PIN=12345678
+PIN=87654321
+FILE=hello
+
+echo "hello" > hello
+
+read -p "Create RSA:4096 keypair" foo
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 --keypairgen --key-type RSA:2048 --id 01 --token-label fio --pin $PIN
+
+read -p "Get the publick key to pubkey.spki" foo
+$PTOOL -l --pin $PIN --id 01 --read-object --type pubkey --output-file pubkey.spki
+
+read -p "Transform pubkey.spki from DER to PEM" foo
+openssl rsa -inform DER -outform PEM -in pubkey.spki -pubin > pubkey.pub
+
+read -p "Create a digest sha256 : hello.hash" foo
+openssl dgst -binary -sha256 $FILE > $FILE.hash
+
+read -p "Sign  hello.hash with the PEM key and generate hello.sig signature " foo
+sudo $PTOOL --sign --pin $PIN --id 01 --input-file $FILE.hash --output-file $FILE.sig --mechanism SHA256-RSA-PKCS -f openssl
+
+read -p "Use the public key to verify the file signature" foo
+openssl dgst -sha256 -verify pubkey.pub -signature "$FILE".sig "$FILE"
+
+read -p "Delete private and public keys" foo
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 --list-objects --pin $PIN
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 -b  --type privkey --id 01 --pin 87654321
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 -b  --type pubkey --id 01 --pin 87654321
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 --list-objects --pin 87654321
+
+rm hello
+rm $FILE.sig
+rm $FILE.hash

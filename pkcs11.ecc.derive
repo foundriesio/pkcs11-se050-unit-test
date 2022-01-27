@@ -1,0 +1,13 @@
+#!/bin/bash
+
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 --keypairgen --key-type EC:prime256v1 --id 01 --label tls --token-label fio --pin 87654321
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 --keypairgen --key-type EC:prime256v1 --id 02 --label tls2 --token-label fio --pin 87654321
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 --read-object --type pubkey --id 02 --token-label fio --pin 87654321 -o /tmp/pub.der
+read -p "ECDH1-DERIVE [enter] " foo
+
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 --derive -m ECDH1-DERIVE --id 01 --label tls --token-label fio --pin 87654321 --input-file /tmp/pub.der --output-file /tmp/bytes
+
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 -b --type privkey --id 01 --pin 87654321
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 -b --type pubkey --id 01 --pin 87654321
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 -b --type privkey --id 02 --pin 87654321
+pkcs11-tool --module /usr/lib/libckteec.so.0.1 -b --type pubkey --id 02 --pin 87654321

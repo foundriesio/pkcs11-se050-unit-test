@@ -1,0 +1,54 @@
+#!/bin/sh
+
+PTOOL='pkcs11-tool --module /usr/lib/libckteec.so.0.1'
+SO_PIN=12345678
+PIN=87654321
+ID=01
+
+# Generate RSA keypair
+read -p "Generate keypair 2048" foo
+$PTOOL --pin $PIN --keypairgen --key-type rsa:2048 --id $ID --label rsa1 --token-label fio
+
+read -p "Read object " foo
+$PTOOL --pin $PIN --read-object --type pubkey --id $ID --token-label fio --output-file rsa-pubkey.der
+openssl rsa -inform DER -outform PEM -in rsa-pubkey.der -pubin > rsa-pubkey.pub
+
+echo "Creating data to sign"
+echo "data to sign (max 100 bytes)" > data
+
+# RSA-PKCS-PSS: test sign/verify
+read -p "RSA-PKCS-PSS test sign/verify" foo
+openssl dgst -binary -sha256 data > data.hash
+$PTOOL --pin $PIN --salt-len=-1 --sign --id $ID --token-label fio --hash-algorithm=SHA256 --mechanism RSA-PKCS-PSS --input-file data.hash --output-file data.sig
+openssl dgst -keyform PEM -verify rsa-pubkey.pub -sha256 -sigopt rsa_padding_mode:pss -sigopt rsa_mgf1_md:sha256 -sigopt rsa_pss_saltlen:-1 -signature data.sig data
+$PTOOL --pin $PIN --verify --salt-len=-1 --id $ID --token-label fio --hash-algorithm=SHA256 --mechanism RSA-PKCS-PSS --input-file data.hash --signature-file data.sig
+
+# RSA-PKCS: test sign/verify
+read -p "RSA-PKCS test sign/verify" foo
+$PTOOL --pin $PIN --sign --id $ID --token-label fio --mechanism RSA-PKCS --input-file data --output-file data.sig
+openssl rsautl -verify -inkey rsa-pubkey.pub -in data.sig -pubin
+$PTOOL --pin $PIN --verify --id $ID --token-label fio --mechanism RSA-PKCS --input-file data --signature-file data.sig
+
+# RSA-PKCS-SHA256: test sign/verify
+read -p  "RSA-PKCS-SHA256 test sign/verify" foo
+$PTOOL --pin $PIN --sign --id $ID --token-label fio --mechanism SHA256-RSA-PKCS --input-file data --output-file data.sig
+openssl dgst -keyform PEM -verify rsa-pubkey.pub -sha256 -signature data.sig data
+$PTOOL --pin $PIN --verify --id $ID --token-label fio --mechanism SHA256-RSA-PKCS --input-file data --signature-file data.sig
+
+
+# Encrypt (RSA-PKCS)
+read -p "Encrypt/decrypt " foo
+openssl rsautl -encrypt -inkey rsa-pubkey.pub -in data -pubin -out data.crypt
+$PTOOL --pin $PIN --decrypt --id 01 --token-label fio --mechanism RSA-PKCS --input-file data.crypt > data.decrypted
+
+
+# House keeping
+read -p "Cleanup" foo
+$PTOOL --list-objects --pin $PIN
+$PTOOL -b  --type privkey --id $ID --pin $PIN
+$PTOOL -b  --type pubkey --id $ID --pin $PIN
+$PTOOL --list-objects --pin $PIN
+
+rm data
+
+

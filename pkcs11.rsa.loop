@@ -1,0 +1,28 @@
+#!/bin/sh
+
+# Exercise creating as many keys as possible.
+#
+# Probably it will require 'ssscli se05x reset' to clean afterwards
+
+set -e
+
+COUNT=${1:-1}
+CYCLE=${2:-30}
+
+echo "Doing $CYCLE cycles"
+for i in $(seq 1 $CYCLE)
+do
+	pkcs11-tool --module /usr/lib/libckteec.so.0.1 --list-objects --pin 87654321
+	echo ">>>>>> Creating $COUNT keys, Cycle $i <<<<<<"
+	for j in $(seq 1 $COUNT)
+	do
+		pkcs11-tool --module /usr/lib/libckteec.so.0.1 --keypairgen --key-type RSA:2048 --id 33 --token-label fio --pin 87654321
+	done
+	pkcs11-tool --module /usr/lib/libckteec.so.0.1 --list-objects --pin 87654321
+	echo ">>>>>> Removing $COUNT keys <<<<<<"
+	for j in $(seq 1 $COUNT)
+	do
+		pkcs11-tool --module /usr/lib/libckteec.so.0.1 -b --type privkey --id 33 --pin 87654321
+		pkcs11-tool --module /usr/lib/libckteec.so.0.1 -b --type pubkey --id 33 --pin 87654321
+	done
+done

@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# Import factory keys existing in the SE050 into the pkcs#11 database
+
+# select one of the ones reported by this command
+sudo ssscli se05x readidlist
+
+read -p "Enter oid of an existing key in the se050 : " OID
+read -p "Enter id for pkcs#11  : " ID
+sudo pkcs11-tool --module /usr/lib/libckteec.so.0.1 --keypairgen --key-type RSA:4096 --id $ID --label SE_$OID --token-label fio --pin 87654321
+sudo pkcs11-tool --module /usr/lib/libckteec.so.0.1 --list-objects --pin 87654321
+

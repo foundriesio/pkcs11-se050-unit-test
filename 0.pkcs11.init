@@ -1,0 +1,12 @@
+#
+#
+#!/bin/bash
+
+PTOOL='pkcs11-tool --module /usr/lib/libckteec.so.0.1' 
+SO_PIN=12345678
+PIN=87654321
+
+$PTOOL --init-token --label fio --so-pin $SO_PIN
+$PTOOL --init-pin --so-pin $SO_PIN --pin $PIN
+$PTOOL --list-mechanisms --pin $PIN
+$PTOOL --list-objects --pin 87654321
